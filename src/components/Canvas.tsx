@@ -2,7 +2,12 @@ import { useRef, useEffect, useState, useCallback } from 'react';
 import { useApp } from '@/contexts/AppContext';
 import { drawShape } from '@/lib/shapes';
 
-export function Canvas() {
+type CanvasProps = {
+  /** Called when the visible composite canvas is mounted or resized. */
+  onCompositeReady?: (canvas: HTMLCanvasElement | null) => void;
+};
+
+export function Canvas({ onCompositeReady }: CanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const compositeCanvasRef = useRef<HTMLCanvasElement>(null);
   const [isDrawing, setIsDrawing] = useState(false);
@@ -34,6 +39,14 @@ export function Canvas() {
 
   const activeLayer = layers.find(l => l.id === activeLayerId);
 
+  // Let parent know about the composite canvas
+  useEffect(() => {
+    if (onCompositeReady) onCompositeReady(compositeCanvasRef.current);
+    return () => {
+      if (onCompositeReady) onCompositeReady(null);
+    };
+  }, [onCompositeReady, canvasWidth, canvasHeight]);
+
   // Composite all layers
   useEffect(() => {
     const compositeCanvas = compositeCanvasRef.current;
@@ -44,7 +57,7 @@ export function Canvas() {
 
     // Clear composite
     ctx.clearRect(0, 0, canvasWidth, canvasHeight);
-    
+
     // Draw background
     ctx.fillStyle = backgroundColor;
     ctx.fillRect(0, 0, canvasWidth, canvasHeight);
@@ -121,7 +134,7 @@ export function Canvas() {
       ctx.lineCap = 'round';
       ctx.lineJoin = 'round';
       ctx.lineWidth = brushSize;
-      
+
       if (activeTool === 'brush') {
         ctx.strokeStyle = brushColor;
         ctx.globalCompositeOperation = 'source-over';
@@ -222,7 +235,7 @@ export function Canvas() {
       const minY = Math.min(start.y, end.y);
       const maxY = Math.max(start.y, end.y);
 
-      if (pos.x >= minX && pos.x <= maxX && pos.y >= minY && pos.y <= maxY) {
+    if (pos.x >= minX && pos.x <= maxX && pos.y >= minY && pos.y <= maxY) {
         setIsDraggingSelection(true);
         setLastPos(pos);
         return;
@@ -243,7 +256,7 @@ export function Canvas() {
     } else if (isDraggingSelection && selection && lastPos) {
       const dx = pos.x - lastPos.x;
       const dy = pos.y - lastPos.y;
-      
+
       setSelection({
         start: { x: selection.start.x + dx, y: selection.start.y + dy },
         end: { x: selection.end.x + dx, y: selection.end.y + dy },

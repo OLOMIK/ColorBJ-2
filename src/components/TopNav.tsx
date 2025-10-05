@@ -1,4 +1,4 @@
-import { User } from 'lucide-react';
+import { User, Brush } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { getTranslation } from '@/lib/i18n';
 import { useApp } from '@/contexts/AppContext';
@@ -13,9 +13,10 @@ interface TopNavProps {
   onFileMenuClick: () => void;
   onInfoMenuClick: () => void;
   onSettingsClick: () => void;
+  onExportClick: () => void;
 }
 
-export function TopNav({ onFileMenuClick, onInfoMenuClick, onSettingsClick }: TopNavProps) {
+export function TopNav({ onFileMenuClick, onInfoMenuClick, onSettingsClick, onExportClick}: TopNavProps) {
   const { settings } = useApp();
   const t = (key: keyof typeof import('@/lib/i18n').translations.en) => 
     getTranslation(settings.language, key);
@@ -24,7 +25,7 @@ export function TopNav({ onFileMenuClick, onInfoMenuClick, onSettingsClick }: To
     <nav className="h-14 border-b border-border bg-card flex items-center justify-between px-4">
       <div className="flex items-center gap-6">
         <div className="flex items-center gap-2">
-          <span className="text-xl font-bold text-primary">✏️ {t('appName')} {t('version')}</span>
+          <span className="text-xl font-bold grid grid-cols-[auto_2fr]"><Brush /> {t('appName')}</span>
         </div>
         
         <div className="flex gap-2">
@@ -38,13 +39,13 @@ export function TopNav({ onFileMenuClick, onInfoMenuClick, onSettingsClick }: To
               <DropdownMenuItem onClick={onFileMenuClick}>
                 {t('newFile')}
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={onFileMenuClick}>
+              <DropdownMenuItem onClick={() => console.log('todo')}>
                 {t('open')}
               </DropdownMenuItem>
               <DropdownMenuItem onClick={onFileMenuClick}>
                 {t('save')}
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={onFileMenuClick}>
+              <DropdownMenuItem onClick={onExportClick}>
                 {t('export')}
               </DropdownMenuItem>
             </DropdownMenuContent>
@@ -60,10 +61,6 @@ export function TopNav({ onFileMenuClick, onInfoMenuClick, onSettingsClick }: To
         </div>
       </div>
       
-      <Button variant="ghost" size="sm">
-        <User className="mr-2 h-4 w-4" />
-        {t('login')}
-      </Button>
     </nav>
   );
 }

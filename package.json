@@ -1,7 +1,8 @@
 {
-  "name": "vite_react_shadcn_ts",
+  "name": "colorbj-2",
   "private": true,
-  "version": "0.0.0",
+  "author": {"name": "Aleksander Marciniak"},
+  "version": "2.0.1",
   "type": "module",
   "scripts": {
     "dev": "vite",

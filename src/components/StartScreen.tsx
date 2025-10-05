@@ -19,7 +19,7 @@ export function StartScreen({ onOpenFile, onCreateNew, onPasteFromClipboard }: S
       <div className="text-center space-y-8 p-8">
         <div>
           <h1 className="text-6xl font-bold mb-2 bg-gradient-to-r from-primary to-purple-500 bg-clip-text text-transparent">
-            {t('appName')} {t('version')}
+            {t('appName')}
           </h1>
           <p className="text-xl text-muted-foreground">{t('welcome')}</p>
         </div>

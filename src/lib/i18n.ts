@@ -4,7 +4,7 @@ export const translations = {
   en: {
     // App
     appName: 'ColorBJ',
-    version: '14.0',
+    version: '2',
     
     // Navigation
     file: 'File',

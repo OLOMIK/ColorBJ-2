@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { AppProvider, useApp } from '@/contexts/AppContext';
 import { StartScreen } from '@/components/StartScreen';
 import { TopNav } from '@/components/TopNav';
@@ -29,19 +29,23 @@ function PaintApp() {
   const [gradientModalOpen, setGradientModalOpen] = useState(false);
   const [infoModalOpen, setInfoModalOpen] = useState(false);
   const [settingsModalOpen, setSettingsModalOpen] = useState(false);
-  
+
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const { 
-    addLayer, 
-    settings, 
-    layers, 
-    activeLayerId, 
+
+  const {
+    addLayer,
+    settings,
+    layers,
+    activeLayerId,
     updateLayerCanvas,
     setPendingAction,
     setCanvasSize,
+    backgroundColor,
+    canvasWidth,
+    canvasHeight,
   } = useApp();
 
-  const t = (key: keyof typeof import('@/lib/i18n').translations.en) => 
+  const t = (key: keyof typeof import('@/lib/i18n').translations.en) =>
     getTranslation(settings.language, key);
 
   const handleCreateNew = () => {
@@ -63,7 +67,7 @@ function PaintApp() {
     const img = new Image();
     img.onload = () => {
       addLayer();
-      const activeLayer = layers.find(l => l.id === activeLayerId);
+      const activeLayer = layers.find((l) => l.id === activeLayerId);
       if (!activeLayer) return;
 
       const ctx = activeLayer.canvas.getContext('2d');
@@ -71,7 +75,7 @@ function PaintApp() {
         ctx.drawImage(img, 0, 0);
         updateLayerCanvas(activeLayer.id, activeLayer.canvas);
       }
-      
+
       setShowStartScreen(false);
       toast.success(t('fileOpened'));
     };
@@ -88,7 +92,7 @@ function PaintApp() {
             const img = new Image();
             img.onload = () => {
               addLayer();
-              const activeLayer = layers.find(l => l.id === activeLayerId);
+              const activeLayer = layers.find((l) => l.id === activeLayerId);
               if (!activeLayer) return;
 
               const ctx = activeLayer.canvas.getContext('2d');
@@ -96,7 +100,7 @@ function PaintApp() {
                 ctx.drawImage(img, 0, 0);
                 updateLayerCanvas(activeLayer.id, activeLayer.canvas);
               }
-              
+
               setShowStartScreen(false);
               toast.success(t('imagePasted'));
             };
@@ -110,10 +114,10 @@ function PaintApp() {
       toast.error('Failed to read clipboard');
     }
   };
-
+  document.body.style.userSelect = "none";
   const handleClearAll = () => {
     if (confirm(t('confirmClear'))) {
-      const activeLayer = layers.find(l => l.id === activeLayerId);
+      const activeLayer = layers.find((l) => l.id === activeLayerId);
       if (!activeLayer) return;
 
       const ctx = activeLayer.canvas.getContext('2d');
@@ -128,7 +132,7 @@ function PaintApp() {
   const handleAddText = (text: string, font: string, size: number, color: string) => {
     setPendingAction({
       type: 'text',
-      data: { text, font, size, color }
+      data: { text, font, size, color },
     });
     toast.info(t('clickToPlace'));
   };
@@ -136,13 +140,13 @@ function PaintApp() {
   const handleAddShape = (type: ShapeType, color: string, size: number) => {
     setPendingAction({
       type: 'shape',
-      data: { shapeType: type, shapeColor: color, shapeSize: size }
+      data: { shapeType: type, shapeColor: color, shapeSize: size },
     });
     toast.info(t('clickToPlace'));
   };
 
   const handleColorAdjust = (red: number, green: number, blue: number, gamma: number) => {
-    const activeLayer = layers.find(l => l.id === activeLayerId);
+    const activeLayer = layers.find((l) => l.id === activeLayerId);
     if (!activeLayer) return;
 
     adjustColors(activeLayer.canvas, red, green, blue, gamma);
@@ -152,9 +156,9 @@ function PaintApp() {
 
   const handleResize = (width: number, height: number) => {
     setCanvasSize(width, height);
-    
-    // Resize all layer canvases
-    layers.forEach(layer => {
+
+    // Resize wszystkich warstw
+    layers.forEach((layer) => {
       const newCanvas = document.createElement('canvas');
       newCanvas.width = width;
       newCanvas.height = height;
@@ -164,12 +168,12 @@ function PaintApp() {
         updateLayerCanvas(layer.id, newCanvas);
       }
     });
-    
+
     toast.success('Canvas resized!');
   };
 
   const handleGradient = (color1: string, color2: string) => {
-    const activeLayer = layers.find(l => l.id === activeLayerId);
+    const activeLayer = layers.find((l) => l.id === activeLayerId);
     if (!activeLayer) return;
 
     const ctx = activeLayer.canvas.getContext('2d');
@@ -181,9 +185,61 @@ function PaintApp() {
       ctx.fillRect(0, 0, activeLayer.canvas.width, activeLayer.canvas.height);
       updateLayerCanvas(activeLayer.id, activeLayer.canvas);
     }
-    
+
     toast.success('Gradient applied!');
   };
+  const exportPNG = useCallback(() => {
+    try {
+      const tmp = document.createElement('canvas');
+      tmp.width = canvasWidth;
+      tmp.height = canvasHeight;
+      const ctx = tmp.getContext('2d');
+      if (!ctx) {
+        toast.error('Canvas context not available.');
+        return;
+      }
+
+      // tło
+      ctx.fillStyle = backgroundColor;
+      ctx.fillRect(0, 0, canvasWidth, canvasHeight);
+
+      // warstwy
+      [...layers]
+        .sort((a, b) => a.order - b.order)
+        .filter((layer) => layer.visible)
+        .forEach((layer) => {
+          ctx.globalAlpha = layer.opacity;
+          ctx.drawImage(layer.canvas, 0, 0);
+        });
+
+      ctx.globalAlpha = 1;
+
+      const dataUrl = tmp.toDataURL('image/png');
+      const link = document.createElement('a');
+      const date = new Date().toISOString().slice(0, 10);
+      link.href = dataUrl;
+      link.download = `colorbj-${date}.png`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+
+      toast.success('Exported to PNG ✅');
+    } catch (e) {
+      console.error(e);
+      toast.error('Export failed.');
+    }
+  }, [backgroundColor, canvasWidth, canvasHeight, layers]);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'e') {
+        e.preventDefault();
+        exportPNG();
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [exportPNG]);
 
   if (showStartScreen) {
     return (
@@ -207,11 +263,14 @@ function PaintApp() {
   return (
     <div className="h-screen flex flex-col">
       <TopNav
-        onFileMenuClick={() => toast('File menu')}
+        onFileMenuClick={() => {
+          toast('File menu');
+        }}
         onInfoMenuClick={() => setInfoModalOpen(true)}
         onSettingsClick={() => setSettingsModalOpen(true)}
+        onExportClick={exportPNG}
       />
-      
+
       <div className="flex-1 flex overflow-hidden">
         <Toolbar
           onClearAll={handleClearAll}
@@ -224,16 +283,20 @@ function PaintApp() {
           onInsertGradient={() => setGradientModalOpen(true)}
           onToggleLayers={() => setLayersPanelOpen(!layersPanelOpen)}
           onGenerateImage={() => toast('Generate - Coming soon!')}
+          // opcjonalnie: mały przycisk do eksportu w Toolbarze (jeśli chcesz)
+          // onExportPNG={exportPNG}
         />
-        
+
         <div className="flex-1 relative">
           <Canvas />
           <ControlPanel />
+
         </div>
-        
+
         <LayersPanel isOpen={layersPanelOpen} />
       </div>
 
+      
       <input
         ref={fileInputRef}
         type="file"
