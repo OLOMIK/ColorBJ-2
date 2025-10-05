@@ -1,11 +1,20 @@
 import { useRef, useEffect, useState, useCallback } from 'react';
 import { useApp } from '@/contexts/AppContext';
+import { drawShape } from '@/lib/shapes';
 
 export function Canvas() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const compositeCanvasRef = useRef<HTMLCanvasElement>(null);
   const [isDrawing, setIsDrawing] = useState(false);
   const [lastPos, setLastPos] = useState<{ x: number; y: number } | null>(null);
+  const [selection, setSelection] = useState<{
+    start: { x: number; y: number };
+    end: { x: number; y: number };
+    imageData?: ImageData;
+  } | null>(null);
+  const [isSelecting, setIsSelecting] = useState(false);
+  const [isDraggingSelection, setIsDraggingSelection] = useState(false);
+  const [copiedImageData, setCopiedImageData] = useState<ImageData | null>(null);
 
   const {
     canvasWidth,
@@ -18,6 +27,9 @@ export function Canvas() {
     brushSize,
     settings,
     updateLayerCanvas,
+    pendingAction,
+    setPendingAction,
+    setBrushColor,
   } = useApp();
 
   const activeLayer = layers.find(l => l.id === activeLayerId);
@@ -145,8 +157,6 @@ export function Canvas() {
     setLastPos(null);
   }, []);
 
-  const { setBrushColor } = useApp();
-
   const handleEyedropper = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
     if (activeTool !== 'eyedropper') return;
 
@@ -166,6 +176,180 @@ export function Canvas() {
 
     setBrushColor(color);
   }, [activeTool, getMousePos, setBrushColor]);
+
+  // Handle pending actions (text, shapes)
+  const handleCanvasClick = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
+    if (!pendingAction || !activeLayer) return;
+
+    const pos = getMousePos(e);
+    if (!pos) return;
+
+    const ctx = activeLayer.canvas.getContext('2d');
+    if (!ctx) return;
+
+    if (pendingAction.type === 'text' && pendingAction.data.text) {
+      ctx.font = `${pendingAction.data.size}px ${pendingAction.data.font}`;
+      ctx.fillStyle = pendingAction.data.color || '#000000';
+      ctx.fillText(pendingAction.data.text, pos.x, pos.y);
+      updateLayerCanvas(activeLayer.id, activeLayer.canvas);
+      setPendingAction(null);
+    } else if (pendingAction.type === 'shape') {
+      drawShape(
+        ctx,
+        pendingAction.data.shapeType || 'rectangle',
+        pos.x,
+        pos.y,
+        pendingAction.data.shapeSize || 100,
+        pendingAction.data.shapeColor || '#000000'
+      );
+      updateLayerCanvas(activeLayer.id, activeLayer.canvas);
+      setPendingAction(null);
+    }
+  }, [pendingAction, activeLayer, getMousePos, updateLayerCanvas, setPendingAction]);
+
+  // Selection tool handlers
+  const handleSelectionStart = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
+    if (activeTool !== 'select' || !activeLayer) return;
+
+    const pos = getMousePos(e);
+    if (!pos) return;
+
+    // Check if clicking inside existing selection
+    if (selection) {
+      const { start, end } = selection;
+      const minX = Math.min(start.x, end.x);
+      const maxX = Math.max(start.x, end.x);
+      const minY = Math.min(start.y, end.y);
+      const maxY = Math.max(start.y, end.y);
+
+      if (pos.x >= minX && pos.x <= maxX && pos.y >= minY && pos.y <= maxY) {
+        setIsDraggingSelection(true);
+        setLastPos(pos);
+        return;
+      }
+    }
+
+    setIsSelecting(true);
+    setSelection({ start: pos, end: pos });
+  }, [activeTool, activeLayer, selection, getMousePos]);
+
+  const handleSelectionMove = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
+    if (!activeLayer) return;
+    const pos = getMousePos(e);
+    if (!pos) return;
+
+    if (isSelecting && selection) {
+      setSelection({ ...selection, end: pos });
+    } else if (isDraggingSelection && selection && lastPos) {
+      const dx = pos.x - lastPos.x;
+      const dy = pos.y - lastPos.y;
+      
+      setSelection({
+        start: { x: selection.start.x + dx, y: selection.start.y + dy },
+        end: { x: selection.end.x + dx, y: selection.end.y + dy },
+        imageData: selection.imageData,
+      });
+      setLastPos(pos);
+    }
+  }, [isSelecting, isDraggingSelection, selection, lastPos, activeLayer, getMousePos]);
+
+  const handleSelectionEnd = useCallback(() => {
+    if (isSelecting && selection && activeLayer) {
+      // Capture the selected area
+      const ctx = activeLayer.canvas.getContext('2d');
+      if (ctx) {
+        const minX = Math.min(selection.start.x, selection.end.x);
+        const maxX = Math.max(selection.start.x, selection.end.x);
+        const minY = Math.min(selection.start.y, selection.end.y);
+        const maxY = Math.max(selection.start.y, selection.end.y);
+        const width = maxX - minX;
+        const height = maxY - minY;
+
+        if (width > 0 && height > 0) {
+          const imageData = ctx.getImageData(minX, minY, width, height);
+          setSelection({ ...selection, imageData });
+        }
+      }
+    }
+    setIsSelecting(false);
+    setIsDraggingSelection(false);
+    setLastPos(null);
+  }, [isSelecting, selection, activeLayer]);
+
+  // Keyboard handlers for copy/paste
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (!activeLayer || activeTool !== 'select') return;
+
+      const ctx = activeLayer.canvas.getContext('2d');
+      if (!ctx) return;
+
+      // Copy: Ctrl/Cmd + C
+      if ((e.ctrlKey || e.metaKey) && e.key === 'c' && selection?.imageData) {
+        setCopiedImageData(selection.imageData);
+        e.preventDefault();
+      }
+
+      // Paste: Ctrl/Cmd + V
+      if ((e.ctrlKey || e.metaKey) && e.key === 'v' && copiedImageData) {
+        const minX = Math.min(selection?.start.x || 50, selection?.end.x || 50);
+        const minY = Math.min(selection?.start.y || 50, selection?.end.y || 50);
+        ctx.putImageData(copiedImageData, minX + 20, minY + 20);
+        updateLayerCanvas(activeLayer.id, activeLayer.canvas);
+        e.preventDefault();
+      }
+
+      // Delete: Delete/Backspace
+      if ((e.key === 'Delete' || e.key === 'Backspace') && selection) {
+        const minX = Math.min(selection.start.x, selection.end.x);
+        const maxX = Math.max(selection.start.x, selection.end.x);
+        const minY = Math.min(selection.start.y, selection.end.y);
+        const maxY = Math.max(selection.start.y, selection.end.y);
+        ctx.clearRect(minX, minY, maxX - minX, maxY - minY);
+        updateLayerCanvas(activeLayer.id, activeLayer.canvas);
+        setSelection(null);
+        e.preventDefault();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [activeLayer, activeTool, selection, copiedImageData, updateLayerCanvas]);
+
+  // Draw selection rectangle on composite canvas
+  useEffect(() => {
+    const compositeCanvas = compositeCanvasRef.current;
+    if (!compositeCanvas || !selection || activeTool !== 'select') return;
+
+    const ctx = compositeCanvas.getContext('2d');
+    if (!ctx) return;
+
+    // Redraw composite
+    ctx.clearRect(0, 0, canvasWidth, canvasHeight);
+    ctx.fillStyle = backgroundColor;
+    ctx.fillRect(0, 0, canvasWidth, canvasHeight);
+
+    [...layers]
+      .sort((a, b) => a.order - b.order)
+      .filter(layer => layer.visible)
+      .forEach(layer => {
+        ctx.globalAlpha = layer.opacity;
+        ctx.drawImage(layer.canvas, 0, 0);
+      });
+    ctx.globalAlpha = 1;
+
+    // Draw selection rectangle
+    const minX = Math.min(selection.start.x, selection.end.x);
+    const maxX = Math.max(selection.start.x, selection.end.x);
+    const minY = Math.min(selection.start.y, selection.end.y);
+    const maxY = Math.max(selection.start.y, selection.end.y);
+
+    ctx.strokeStyle = '#10b9cc';
+    ctx.lineWidth = 2;
+    ctx.setLineDash([5, 5]);
+    ctx.strokeRect(minX, minY, maxX - minX, maxY - minY);
+    ctx.setLineDash([]);
+  }, [selection, activeTool, layers, backgroundColor, canvasWidth, canvasHeight]);
 
   return (
     <div className="flex-1 flex items-center justify-center bg-canvas-bg overflow-auto p-8">
@@ -189,16 +373,50 @@ export function Canvas() {
           ref={canvasRef}
           width={canvasWidth}
           height={canvasHeight}
-          onMouseDown={handleMouseDown}
-          onMouseMove={handleMouseMove}
-          onMouseUp={handleMouseUp}
-          onMouseLeave={handleMouseUp}
-          onClick={handleEyedropper}
+          onMouseDown={(e) => {
+            if (activeTool === 'select') {
+              handleSelectionStart(e);
+            } else {
+              handleMouseDown(e);
+            }
+          }}
+          onMouseMove={(e) => {
+            if (activeTool === 'select') {
+              handleSelectionMove(e);
+            } else {
+              handleMouseMove(e);
+            }
+          }}
+          onMouseUp={() => {
+            if (activeTool === 'select') {
+              handleSelectionEnd();
+            } else {
+              handleMouseUp();
+            }
+          }}
+          onMouseLeave={() => {
+            if (activeTool === 'select') {
+              handleSelectionEnd();
+            } else {
+              handleMouseUp();
+            }
+          }}
+          onClick={(e) => {
+            if (activeTool === 'eyedropper') {
+              handleEyedropper(e);
+            } else if (pendingAction) {
+              handleCanvasClick(e);
+            }
+          }}
           className="absolute top-0 left-0 opacity-0"
           style={{ 
             maxWidth: '100%',
             height: 'auto',
-            pointerEvents: activeTool === 'select' ? 'none' : 'auto'
+            pointerEvents: 'auto',
+            cursor: pendingAction ? 'crosshair' : 
+                   activeTool === 'select' ? 'default' :
+                   activeTool === 'eyedropper' ? 'crosshair' : 
+                   (activeTool === 'brush' || activeTool === 'eraser') ? 'crosshair' : 'default'
           }}
         />
       </div>

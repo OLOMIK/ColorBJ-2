@@ -19,6 +19,7 @@ export const translations = {
     pasteFromClipboard: 'Paste from Clipboard',
     
     // Tools
+    select: 'Select',
     brush: 'Brush',
     eraser: 'Eraser',
     pickColor: 'Pick Color',
@@ -137,6 +138,7 @@ export const translations = {
     pasteFromClipboard: 'Wklej ze schowka',
     
     // Tools
+    select: 'Zaznacz',
     brush: 'Pędzel',
     eraser: 'Gumka',
     pickColor: 'Wybierz kolor',

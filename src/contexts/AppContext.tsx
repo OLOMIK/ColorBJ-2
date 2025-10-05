@@ -19,6 +19,19 @@ export type Tool =
   | 'shape' 
   | 'eyedropper';
 
+export interface PendingAction {
+  type: 'text' | 'shape';
+  data: {
+    text?: string;
+    font?: string;
+    size?: number;
+    color?: string;
+    shapeType?: string;
+    shapeColor?: string;
+    shapeSize?: number;
+  };
+}
+
 export interface AppSettings {
   lineSmoothing: boolean;
   language: Language;
@@ -57,6 +70,10 @@ interface AppContextType {
   // Project
   projectName: string;
   setProjectName: (name: string) => void;
+  
+  // Pending actions
+  pendingAction: PendingAction | null;
+  setPendingAction: (action: PendingAction | null) => void;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -75,6 +92,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     lineSmoothing: true,
     language: 'en',
   });
+  const [pendingAction, setPendingAction] = useState<PendingAction | null>(null);
 
   const setCanvasSize = useCallback((width: number, height: number) => {
     setWidth(width);
@@ -178,6 +196,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
     updateSettings,
     projectName,
     setProjectName,
+    pendingAction,
+    setPendingAction,
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

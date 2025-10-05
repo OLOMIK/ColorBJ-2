@@ -6,14 +6,40 @@ import { Toolbar } from '@/components/Toolbar';
 import { Canvas } from '@/components/Canvas';
 import { LayersPanel } from '@/components/LayersPanel';
 import { ControlPanel } from '@/components/ControlPanel';
+import { BoardColorModal } from '@/components/modals/BoardColorModal';
+import { TextModal } from '@/components/modals/TextModal';
+import { ShapeModal, ShapeType } from '@/components/modals/ShapeModal';
+import { ColorAdjustModal } from '@/components/modals/ColorAdjustModal';
+import { ResizeModal } from '@/components/modals/ResizeModal';
+import { GradientModal } from '@/components/modals/GradientModal';
+import { InfoModal } from '@/components/modals/InfoModal';
+import { SettingsModal } from '@/components/modals/SettingsModal';
 import { toast } from 'sonner';
 import { getTranslation } from '@/lib/i18n';
+import { adjustColors } from '@/lib/colorAdjust';
 
 function PaintApp() {
   const [showStartScreen, setShowStartScreen] = useState(true);
   const [layersPanelOpen, setLayersPanelOpen] = useState(true);
+  const [boardColorOpen, setBoardColorOpen] = useState(false);
+  const [textModalOpen, setTextModalOpen] = useState(false);
+  const [shapeModalOpen, setShapeModalOpen] = useState(false);
+  const [colorAdjustOpen, setColorAdjustOpen] = useState(false);
+  const [resizeModalOpen, setResizeModalOpen] = useState(false);
+  const [gradientModalOpen, setGradientModalOpen] = useState(false);
+  const [infoModalOpen, setInfoModalOpen] = useState(false);
+  const [settingsModalOpen, setSettingsModalOpen] = useState(false);
+  
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const { addLayer, settings, layers, activeLayerId, updateLayerCanvas } = useApp();
+  const { 
+    addLayer, 
+    settings, 
+    layers, 
+    activeLayerId, 
+    updateLayerCanvas,
+    setPendingAction,
+    setCanvasSize,
+  } = useApp();
 
   const t = (key: keyof typeof import('@/lib/i18n').translations.en) => 
     getTranslation(settings.language, key);
@@ -99,6 +125,66 @@ function PaintApp() {
     }
   };
 
+  const handleAddText = (text: string, font: string, size: number, color: string) => {
+    setPendingAction({
+      type: 'text',
+      data: { text, font, size, color }
+    });
+    toast.info(t('clickToPlace'));
+  };
+
+  const handleAddShape = (type: ShapeType, color: string, size: number) => {
+    setPendingAction({
+      type: 'shape',
+      data: { shapeType: type, shapeColor: color, shapeSize: size }
+    });
+    toast.info(t('clickToPlace'));
+  };
+
+  const handleColorAdjust = (red: number, green: number, blue: number, gamma: number) => {
+    const activeLayer = layers.find(l => l.id === activeLayerId);
+    if (!activeLayer) return;
+
+    adjustColors(activeLayer.canvas, red, green, blue, gamma);
+    updateLayerCanvas(activeLayer.id, activeLayer.canvas);
+    toast.success('Colors adjusted!');
+  };
+
+  const handleResize = (width: number, height: number) => {
+    setCanvasSize(width, height);
+    
+    // Resize all layer canvases
+    layers.forEach(layer => {
+      const newCanvas = document.createElement('canvas');
+      newCanvas.width = width;
+      newCanvas.height = height;
+      const ctx = newCanvas.getContext('2d');
+      if (ctx) {
+        ctx.drawImage(layer.canvas, 0, 0, width, height);
+        updateLayerCanvas(layer.id, newCanvas);
+      }
+    });
+    
+    toast.success('Canvas resized!');
+  };
+
+  const handleGradient = (color1: string, color2: string) => {
+    const activeLayer = layers.find(l => l.id === activeLayerId);
+    if (!activeLayer) return;
+
+    const ctx = activeLayer.canvas.getContext('2d');
+    if (ctx) {
+      const gradient = ctx.createLinearGradient(0, 0, activeLayer.canvas.width, activeLayer.canvas.height);
+      gradient.addColorStop(0, color1);
+      gradient.addColorStop(1, color2);
+      ctx.fillStyle = gradient;
+      ctx.fillRect(0, 0, activeLayer.canvas.width, activeLayer.canvas.height);
+      updateLayerCanvas(activeLayer.id, activeLayer.canvas);
+    }
+    
+    toast.success('Gradient applied!');
+  };
+
   if (showStartScreen) {
     return (
       <>
@@ -121,21 +207,21 @@ function PaintApp() {
   return (
     <div className="h-screen flex flex-col">
       <TopNav
-        onFileMenuClick={() => toast('File menu - Coming soon!')}
-        onInfoMenuClick={() => toast('Info - Coming soon!')}
-        onSettingsClick={() => toast('Settings - Coming soon!')}
+        onFileMenuClick={() => toast('File menu')}
+        onInfoMenuClick={() => setInfoModalOpen(true)}
+        onSettingsClick={() => setSettingsModalOpen(true)}
       />
       
       <div className="flex-1 flex overflow-hidden">
         <Toolbar
           onClearAll={handleClearAll}
-          onSetBoardColor={() => toast('Board color - Coming soon!')}
-          onInsertText={() => toast('Text tool - Coming soon!')}
-          onInsertShape={() => toast('Shape tool - Coming soon!')}
-          onAdjustColors={() => toast('Color adjust - Coming soon!')}
-          onResize={() => toast('Resize - Coming soon!')}
+          onSetBoardColor={() => setBoardColorOpen(true)}
+          onInsertText={() => setTextModalOpen(true)}
+          onInsertShape={() => setShapeModalOpen(true)}
+          onAdjustColors={() => setColorAdjustOpen(true)}
+          onResize={() => setResizeModalOpen(true)}
           onRemoveBackground={() => toast('Remove BG - Coming soon!')}
-          onInsertGradient={() => toast('Gradient - Coming soon!')}
+          onInsertGradient={() => setGradientModalOpen(true)}
           onToggleLayers={() => setLayersPanelOpen(!layersPanelOpen)}
           onGenerateImage={() => toast('Generate - Coming soon!')}
         />
@@ -155,6 +241,15 @@ function PaintApp() {
         className="hidden"
         onChange={handleFileSelected}
       />
+
+      <BoardColorModal open={boardColorOpen} onOpenChange={setBoardColorOpen} />
+      <TextModal open={textModalOpen} onOpenChange={setTextModalOpen} onAddText={handleAddText} />
+      <ShapeModal open={shapeModalOpen} onOpenChange={setShapeModalOpen} onAddShape={handleAddShape} />
+      <ColorAdjustModal open={colorAdjustOpen} onOpenChange={setColorAdjustOpen} onApply={handleColorAdjust} />
+      <ResizeModal open={resizeModalOpen} onOpenChange={setResizeModalOpen} onResize={handleResize} />
+      <GradientModal open={gradientModalOpen} onOpenChange={setGradientModalOpen} onApply={handleGradient} />
+      <InfoModal open={infoModalOpen} onOpenChange={setInfoModalOpen} />
+      <SettingsModal open={settingsModalOpen} onOpenChange={setSettingsModalOpen} />
     </div>
   );
 }

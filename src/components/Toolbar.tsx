@@ -55,6 +55,7 @@ export function Toolbar({
     getTranslation(settings.language, key);
 
   const tools: { id: Tool; icon: React.ReactNode; label: keyof typeof import('@/lib/i18n').translations.en }[] = [
+    { id: 'select', icon: <Sliders size={20} className="rotate-90" />, label: 'select' as const },
     { id: 'brush', icon: <Brush size={20} />, label: 'brush' },
     { id: 'eraser', icon: <Eraser size={20} />, label: 'eraser' },
     { id: 'colorPicker', icon: <Palette size={20} />, label: 'pickColor' },
