@@ -48,7 +48,7 @@ export function InfoModal({ open, onOpenChange }: InfoModalProps) {
             <div className="space-y-2">
               <h4 className="font-medium">Community</h4>
               <Button variant="outline" asChild className="w-full">
-                <a href="https://discord.gg/lovable" target="_blank" rel="noopener noreferrer">
+                <a href="https://discord.gg/yPeEpfUceD" target="_blank" rel="noopener noreferrer">
                   <ExternalLink className="mr-2 h-4 w-4" />
                   Join our Discord
                 </a>

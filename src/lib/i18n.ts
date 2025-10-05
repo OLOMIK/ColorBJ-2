@@ -10,7 +10,6 @@ export const translations = {
     file: 'File',
     account: 'Account',
     info: 'Info',
-    login: 'Log in!',
     
     // Start Screen
     welcome: 'Welcome to ColorBJ',
