@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { AppProvider, useApp } from '@/contexts/AppContext';
+import { AppProvider } from '@/contexts/AppContext';
+import { useApp } from '@/contexts/AppContext';
 import { StartScreen } from '@/components/StartScreen';
 import { TopNav } from '@/components/TopNav';
 import { Toolbar } from '@/components/Toolbar';

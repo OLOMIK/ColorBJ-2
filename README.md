@@ -2,4 +2,4 @@
 We implemented completly new React UI, refactored code
 comming soon
 
-unstable, pre-release code, full release will be published in november.
+unstable, pre-release code, full release will be published in november. 

@@ -38,6 +38,8 @@ export interface AppSettings {
 }
 
 interface AppContextType {
+  isBrushPanelVisible: boolean;
+  setIsBrushPanelVisible: (visible: boolean) => void;
   // Canvas state
   canvasWidth: number;
   canvasHeight: number;
@@ -79,6 +81,7 @@ interface AppContextType {
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export function AppProvider({ children }: { children: ReactNode }) {
+  const [isBrushPanelVisible, setIsBrushPanelVisible] = useState(true);
   const [canvasWidth, setWidth] = useState(1400);
   const [canvasHeight, setHeight] = useState(1100);
   const [backgroundColor, setBackgroundColor] = useState('#ffffff');
@@ -173,6 +176,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const value: AppContextType = {
+  isBrushPanelVisible,
+  setIsBrushPanelVisible,
     canvasWidth,
     canvasHeight,
     backgroundColor,

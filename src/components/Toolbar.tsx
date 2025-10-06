@@ -50,7 +50,7 @@ export function Toolbar({
   onToggleLayers,
   onGenerateImage,
 }: ToolbarProps) {
-  const { activeTool, setActiveTool, settings } = useApp();
+  const { activeTool, setActiveTool, settings, isBrushPanelVisible, setIsBrushPanelVisible } = useApp();
   const t = (key: keyof typeof import('@/lib/i18n').translations.en) => 
     getTranslation(settings.language, key);
 
@@ -95,7 +95,14 @@ export function Toolbar({
               <Button
                 variant={activeTool === tool.id ? 'toolbarActive' : 'toolbar'}
                 size="icon"
-                onClick={() => setActiveTool(tool.id)}
+                onClick={() => {
+                  setActiveTool(tool.id);
+                  if (tool.id === 'brush') {
+                    setIsBrushPanelVisible(!isBrushPanelVisible);
+                  } else {
+                    setIsBrushPanelVisible(true);
+                  }
+                }}
                 className={cn(
                   'w-12 h-12 rounded-lg',
                   activeTool === tool.id && 'shadow-lg'

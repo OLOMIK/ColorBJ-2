@@ -4,6 +4,7 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { getTranslation } from '@/lib/i18n';
 
+
 export function ControlPanel() {
   const { 
     brushSize, 
@@ -12,12 +13,13 @@ export function ControlPanel() {
     setBrushColor,
     activeTool,
     settings,
+    isBrushPanelVisible,
   } = useApp();
 
   const t = (key: keyof typeof import('@/lib/i18n').translations.en) => 
     getTranslation(settings.language, key);
 
-  if (activeTool !== 'brush' && activeTool !== 'eraser') return null;
+  if ((activeTool !== 'brush' && activeTool !== 'eraser') || (activeTool === 'brush' && !isBrushPanelVisible)) return null;
 
   return (
     <div className="absolute top-20 left-20 bg-card border border-border rounded-lg p-4 shadow-lg space-y-4 w-64">
